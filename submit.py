@@ -37,8 +37,8 @@ IDX_POOL = 11   # プール参加
 
 
 def random_temp() -> str:
-    """36.0〜36.9 の範囲でランダムな体温を返す"""
-    val = 36.0 + random.randint(0, 9) / 10
+    """36.5〜36.8 の範囲でランダムな体温を返す"""
+    val = 36.0 + random.randint(5, 8) / 10
     return f"{val:.1f}"
 
 
@@ -128,20 +128,27 @@ def run():
             selects = page.locator("select").all()
             log(f"select要素数: {len(selects)}")
 
+            def react_set(locator, value: str):
+                """select_option + blur + focusout でReact内部stateを確実に更新する。
+                select_option だけではonBlurが発火せず体温stateがnullのままになるため必須。"""
+                locator.select_option(value)
+                locator.dispatch_event("blur")
+                locator.dispatch_event("focusout")
+
             # 体温
-            selects[IDX_TEMP].select_option(temp)
+            react_set(selects[IDX_TEMP], temp)
             log(f"体温: {temp}℃")
 
             # 検温時間（時）
-            selects[IDX_HOUR].select_option(TEMP_HOUR)
+            react_set(selects[IDX_HOUR], TEMP_HOUR)
             log(f"検温時間（時）: {TEMP_HOUR}")
 
             # 検温時間（分）
-            selects[IDX_MIN].select_option(TEMP_MINUTE)
+            react_set(selects[IDX_MIN], TEMP_MINUTE)
             log(f"検温時間（分）: {TEMP_MINUTE}")
 
             # プール参加
-            selects[IDX_POOL].select_option("true")
+            react_set(selects[IDX_POOL], "true")
             log("プール: 参加")
 
             # 「確認する」ボタン
