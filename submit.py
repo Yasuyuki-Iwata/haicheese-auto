@@ -22,6 +22,7 @@ DISCORD_BOT_TOKEN  = os.getenv("DISCORD_BOT_TOKEN")
 DISCORD_DM_CHANNEL = os.getenv("DISCORD_DM_CHANNEL")
 LOG_DIR = SCRIPT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
+SKIP_FILE = SCRIPT_DIR / "skip_dates.txt"  # 1行1日付（YYYY-MM-DD）、その日は自動送信をスキップ
 
 LOGIN_URL = "https://note.hoi-sys.com/"
 
@@ -87,16 +88,28 @@ def is_weekday() -> bool:
     return True
 
 
+def is_skipped(today: date) -> bool:
+    """skip_dates.txt に今日の日付があればスキップする"""
+    if not SKIP_FILE.exists():
+        return False
+    dates = {line.strip() for line in SKIP_FILE.read_text().splitlines() if line.strip()}
+    return today.isoformat() in dates
+
+
 def run():
     if not EMAIL or not PASSWORD or PASSWORD == "your_password_here":
         log("ERROR: .env にメールアドレス・パスワードが未設定です")
         notify("はいチーズ！エラー", ".env の設定が未完了です")
         return
 
+    today = date.today()
     if not is_weekday():
-        today = date.today()
         reason = "祝日" if jpholiday.is_holiday(today) else "土日"
         log(f"スキップ（{reason}）— {today}")
+        return
+
+    if is_skipped(today):
+        log(f"スキップ（手動指定）— {today}")
         return
 
     temp = random_temp()
@@ -124,6 +137,12 @@ def run():
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(2000)
             log("連絡帳フォーム読み込み完了")
+
+            # 既に送信済みだと入力欄がread-only表示になりselectが1個(お子さまの名前)
+            # しかなくなる。8/4・9/1・9/8にこれを「異常終了」として誤検知していた。
+            if page.locator("button", has_text="送信済み").count() > 0:
+                log(f"スキップ（既に送信済み）— {today}")
+                return
 
             selects = page.locator("select").all()
             log(f"select要素数: {len(selects)}")
