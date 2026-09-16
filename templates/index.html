@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#f5f4f0" />
+<meta name="csrf-token" content="{{ csrf_token }}" />
+<title>はいチーズ！ノート 自動送信</title>
+<style>
+:root {
+  color-scheme:light;
+  --ink:#243c48;
+  --muted:#66767d;
+  --line:#e5e7e4;
+  --paper:#f5f4f0;
+  --accent:#a46d46;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  font-size:14px;
+  line-height:1.6;
+}
+button,input,select { font:inherit; }
+button,a,input,select { -webkit-tap-highlight-color:transparent; }
+button { cursor:pointer; touch-action:manipulation; color:inherit; background:transparent; border:0; }
+button:disabled { cursor:wait; opacity:.5; }
+button:focus-visible,input:focus-visible,select:focus-visible {
+  outline:3px solid #a46d46!important;
+  outline-offset:2px;
+}
+h1,h2,p { margin:0; }
+.app-header { border-bottom:1px solid var(--line); background:#fbfbf8; }
+.header-inner {
+  max-width:900px; margin:auto; padding:20px 24px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+}
+h1 { font-size:16px; font-weight:700; letter-spacing:.02em; }
+main { max-width:900px; margin:auto; padding:24px 20px 80px; display:flex; flex-direction:column; gap:16px; }
+.panel { background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px; }
+.status-panel { display:flex; flex-direction:column; gap:8px; }
+.status-top { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.badge {
+  display:inline-flex; align-items:center; padding:5px 12px; border-radius:999px;
+  font-size:12px; font-weight:600; white-space:nowrap;
+}
+.badge-stopped { background:#eee; color:var(--muted); }
+.badge-waiting { background:#fcf4e8; color:#8a5a22; }
+.badge-active { background:#eaf3ee; color:#2f6b4c; }
+.badge-ended { background:#f2eae7; color:#7a5240; }
+.badge-unknown { background:#eee; color:var(--muted); }
+.badge-ok { background:#eaf3ee; color:#2f6b4c; }
+.badge-warning { background:#fbeceb; color:#a5443b; }
+#pause-btn {
+  padding:10px 16px; border:1px solid #cdbbb5; border-radius:9px;
+  color:#89594f; background:#fff; font-size:13px; font-weight:600; min-height:40px;
+}
+#pause-btn:hover { background:#faf2ef; border-color:#a9776b; }
+.next-run { font-size:13px; color:var(--ink); }
+.health-line { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+.running-notice {
+  background:#fff8ea; border:1px solid #e9d6aa; border-radius:10px; padding:10px 12px;
+  font-size:12px; color:#7a5b1e;
+}
+.field-row {
+  display:grid; grid-template-columns:120px 1fr; gap:10px 14px; align-items:center; padding:10px 0;
+  border-bottom:1px solid var(--line);
+}
+.field-row:last-child { border-bottom:0; }
+.field-label { font-size:12px; color:var(--muted); font-weight:600; }
+.field-value { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+input[type=date],input[type=time],input[type=number] {
+  border:1px solid var(--line); border-radius:8px; padding:8px 10px; min-height:40px;
+  background:#fafbf9; color:var(--ink); width:auto;
+}
+input[type=number] { width:80px; }
+.toggle-group { display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+.toggle-group button {
+  padding:9px 16px; font-size:13px; font-weight:600; color:var(--muted); background:#fafbf9;
+  min-height:40px;
+}
+.toggle-group button.active { background:var(--ink); color:#fff; }
+.temp-range { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.hint { font-size:11px; color:var(--muted); }
+.discord-line { font-size:12px; color:var(--muted); }
+.results-table { width:100%; border-collapse:collapse; font-size:12px; }
+.results-table th,.results-table td {
+  text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top;
+}
+.results-table th { color:var(--muted); font-weight:600; }
+.result-badge { padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; display:inline-block; }
+.result-success,.result-already_sent { background:#eaf3ee; color:#2f6b4c; }
+.result-failed,.result-unknown { background:#fbeceb; color:#a5443b; }
+.result-cancelled { background:#eee; color:var(--muted); }
+.result-running { background:#e9f0f5; color:#3a6d8a; }
+.no-results { font-size:12px; color:var(--muted); padding:6px 0; }
+.footer-bar {
+  position:sticky; bottom:0; left:0; right:0; background:#fffffff2; backdrop-filter:blur(10px);
+  border-top:1px solid var(--line); padding:12px 20px calc(12px + env(safe-area-inset-bottom));
+  display:flex; align-items:center; justify-content:space-between; gap:14px; margin:0 -20px -80px;
+}
+.footer-summary { flex:1; min-width:0; font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+.footer-summary.dirty { color:var(--accent); font-weight:600; }
+#save-btn {
+  background:var(--ink); color:#fff; font-size:14px; font-weight:600; min-height:44px;
+  border-radius:9px; padding:10px 22px; flex-shrink:0;
+}
+#save-btn:hover { background:#36535f; }
+#save-btn:disabled { background:#b9c3c6; }
+.error-box {
+  background:#fbeceb; border:1px solid #e2b9b5; color:#a5443b; border-radius:9px;
+  padding:10px 12px; font-size:12px; display:none;
+}
+.error-box.show { display:block; }
+.stale-notice {
+  background:#eee; border:1px solid var(--line); border-radius:9px; padding:8px 12px;
+  font-size:12px; color:var(--muted); display:none;
+}
+.stale-notice.show { display:block; }
+@media(max-width:600px) {
+  .header-inner { padding:16px 16px; }
+  main { padding:18px 14px 90px; }
+  .panel { padding:15px; border-radius:11px; }
+  .field-row { grid-template-columns:1fr; gap:6px; }
+  .footer-bar { margin:0 -14px -90px; padding:10px 14px calc(10px + env(safe-area-inset-bottom)); }
+}
+</style>
+</head>
+<body>
+<header class="app-header"><div class="header-inner">
+  <h1>はいチーズ！ノート 自動送信</h1>
+  <button id="pause-btn" onclick="pauseNow()">自動送信を停止</button>
+</div></header>
+<main>
+
+<section class="panel status-panel">
+  <div class="status-top">
+    <span id="operational-badge" class="badge badge-stopped">停止中</span>
+    <span id="health-badge" class="badge badge-unknown">動作確認：未確認</span>
+  </div>
+  <p id="next-run" class="next-run">次回送信：読み込み中...</p>
+  <p id="running-notice" class="running-notice" style="display:none">
+    処理中です。送信確定済みなら停止後も結果が届くことがあります。
+  </p>
+  <p id="stale-notice" class="stale-notice">情報取得失敗。表示は更新されていません。</p>
+</section>
+
+<section class="panel">
+  <div class="field-row">
+    <span class="field-label">自動送信</span>
+    <div class="field-value">
+      <div class="toggle-group" role="group" aria-label="自動送信">
+        <button type="button" id="enabled-off" onclick="setEnabled(false)">無効</button>
+        <button type="button" id="enabled-on" onclick="setEnabled(true)">有効</button>
+      </div>
+    </div>
+  </div>
+  <div class="field-row">
+    <span class="field-label">開始日</span>
+    <div class="field-value">
+      <input type="date" id="start-date" onchange="markDirty()">
+      <span class="hint">未設定なら開始制限なし</span>
+    </div>
+  </div>
+  <div class="field-row">
+    <span class="field-label">終了日</span>
+    <div class="field-value">
+      <input type="date" id="end-date" onchange="markDirty()">
+      <span class="hint">未設定なら期限なし</span>
+    </div>
+  </div>
+  <div class="field-row">
+    <span class="field-label">体温の範囲</span>
+    <div class="field-value temp-range">
+      <input type="number" id="temp-min" step="0.1" min="35.0" max="42.0" onchange="markDirty()">
+      <span>〜</span>
+      <input type="number" id="temp-max" step="0.1" min="35.0" max="42.0" onchange="markDirty()">
+      <span>℃</span>
+      <span class="hint">範囲内でランダム</span>
+    </div>
+  </div>
+  <div class="field-row">
+    <span class="field-label">検温時刻</span>
+    <div class="field-value">
+      <input type="time" id="measurement-time" step="300" onchange="markDirty()">
+      <span class="hint">5分刻み</span>
+    </div>
+  </div>
+  <div class="field-row">
+    <span class="field-label">プール</span>
+    <div class="field-value">
+      <div class="toggle-group" role="group" aria-label="プール">
+        <button type="button" id="pool-no" onclick="setPool(false)">不参加</button>
+        <button type="button" id="pool-yes" onclick="setPool(true)">参加</button>
+      </div>
+    </div>
+  </div>
+  <div class="field-row">
+    <span class="field-label">送信時刻</span>
+    <div class="field-value">
+      <input type="time" id="submit-time" onchange="markDirty()">
+      <span class="hint">1分単位</span>
+    </div>
+  </div>
+  <div class="field-row">
+    <span class="field-label">Discord通知</span>
+    <div class="field-value discord-line">送信完了・失敗時に通知（設定はありません）</div>
+  </div>
+</section>
+
+<div id="error-box" class="error-box"></div>
+
+<section class="panel">
+  <p class="field-label" style="margin-bottom:10px">直近の結果</p>
+  <table class="results-table">
+    <thead><tr><th>日時</th><th>結果</th><th>内容・理由</th></tr></thead>
+    <tbody id="results-body"></tbody>
+  </table>
+  <p id="no-results" class="no-results" style="display:none">まだ記録がありません</p>
+</section>
+
+</main>
+
+<div class="footer-bar">
+  <p id="footer-summary" class="footer-summary">保存済みの設定です</p>
+  <button id="save-btn" onclick="saveSettings()">設定を保存</button>
+</div>
+
+<script>
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
+let currentStatus = null;
+let dirty = false;
+let previewTimer = null;
+
+function fieldValues() {
+  return {
+    enabled: document.getElementById('enabled-on').classList.contains('active'),
+    start_date: document.getElementById('start-date').value || null,
+    end_date: document.getElementById('end-date').value || null,
+    temp_min: document.getElementById('temp-min').value,
+    temp_max: document.getElementById('temp-max').value,
+    measurement_time: document.getElementById('measurement-time').value,
+    pool_participation: document.getElementById('pool-yes').classList.contains('active'),
+    submit_time: document.getElementById('submit-time').value,
+  };
+}
+
+function applySettingsToForm(settings) {
+  setToggle('enabled', settings.enabled);
+  document.getElementById('start-date').value = settings.start_date || '';
+  document.getElementById('end-date').value = settings.end_date || '';
+  document.getElementById('temp-min').value = settings.temp_min;
+  document.getElementById('temp-max').value = settings.temp_max;
+  document.getElementById('measurement-time').value = settings.measurement_time;
+  setToggle('pool', settings.pool_participation);
+  document.getElementById('submit-time').value = settings.submit_time;
+}
+
+function setToggle(name, on) {
+  const onId = name === 'enabled' ? 'enabled-on' : 'pool-yes';
+  const offId = name === 'enabled' ? 'enabled-off' : 'pool-no';
+  document.getElementById(onId).classList.toggle('active', !!on);
+  document.getElementById(offId).classList.toggle('active', !on);
+}
+
+function setEnabled(on) { setToggle('enabled', on); markDirty(); }
+function setPool(on) { setToggle('pool', on); markDirty(); }
+
+function markDirty() {
+  dirty = true;
+  updateFooter('編集内容を確認しています...');
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(fetchPreview, 400);
+}
+
+async function fetchPreview() {
+  const payload = fieldValues();
+  try {
+    const res = await fetch('/api/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.valid) {
+      showErrors(data.errors || [data.error || '入力内容を確認してください']);
+      updateFooter('保存できません（入力内容を確認してください）', true);
+      return;
+    }
+    hideErrors();
+    updateFooter(data.summary, true);
+  } catch (e) {
+    updateFooter('要約を取得できませんでした（保存は試せます）', true);
+  }
+}
+
+function updateFooter(text, isDirty) {
+  const el = document.getElementById('footer-summary');
+  el.textContent = text;
+  el.classList.toggle('dirty', !!isDirty || dirty);
+}
+
+function showErrors(list) {
+  const box = document.getElementById('error-box');
+  box.innerHTML = '';
+  list.forEach(msg => {
+    const p = document.createElement('div');
+    p.textContent = msg;
+    box.appendChild(p);
+  });
+  box.classList.add('show');
+}
+
+function hideErrors() {
+  document.getElementById('error-box').classList.remove('show');
+}
+
+async function saveSettings() {
+  if (!currentStatus) return;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  const payload = fieldValues();
+  payload.revision = currentStatus.settings.revision;
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.status === 409) {
+      showErrors([data.message || '他の変更が先に保存されています。再読込してください。']);
+      btn.disabled = false;
+      return;
+    }
+    if (!res.ok) {
+      showErrors(data.errors || [data.error || '保存に失敗しました']);
+      btn.disabled = false;
+      return;
+    }
+    hideErrors();
+    dirty = false;
+    applyStatus(data);
+    updateFooter('保存しました');
+  } catch (e) {
+    showErrors(['保存できませんでした（通信エラー）']);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function pauseNow() {
+  const msg = (currentStatus && currentStatus.running_now)
+    ? '処理中の送信があります。停止しても、既に送信確定へ進んだ処理は取り消せません。停止しますか？'
+    : '自動送信を停止します。よろしいですか？';
+  if (!confirm(msg)) return;
+  try {
+    const res = await fetch('/api/pause', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+      body: '{}',
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showErrors([data.error || '停止に失敗しました']);
+      return;
+    }
+    dirty = false;
+    applyStatus(data);
+    updateFooter('停止しました');
+  } catch (e) {
+    showErrors(['停止できませんでした（通信エラー）']);
+  }
+}
+
+function badgeClass(prefix, code) { return `badge badge-${code}`; }
+
+function applyStatus(data) {
+  currentStatus = data;
+  const opBadge = document.getElementById('operational-badge');
+  opBadge.textContent = data.operational_label;
+  opBadge.className = badgeClass('op', data.operational_status);
+
+  const healthBadge = document.getElementById('health-badge');
+  healthBadge.textContent = `動作確認：${data.health_label}`;
+  healthBadge.className = badgeClass('health', data.health_status);
+
+  const nextRunEl = document.getElementById('next-run');
+  if (data.next_run.date) {
+    nextRunEl.textContent = `次回送信：${data.next_run.date}`;
+  } else {
+    nextRunEl.textContent = `次回送信：予定なし（${data.next_run.reason_label || '未定'}）`;
+  }
+
+  document.getElementById('running-notice').style.display = data.running_now ? 'block' : 'none';
+
+  if (!dirty) {
+    applySettingsToForm(data.settings);
+    updateFooter('保存済みの設定です', false);
+  }
+
+  const body = document.getElementById('results-body');
+  body.innerHTML = '';
+  if (!data.recent_runs.length) {
+    document.getElementById('no-results').style.display = 'block';
+  } else {
+    document.getElementById('no-results').style.display = 'none';
+    data.recent_runs.forEach(run => {
+      const tr = document.createElement('tr');
+      const dateTd = document.createElement('td');
+      dateTd.textContent = `${run.target_date}${run.scheduled_time ? ' ' + run.scheduled_time : ''}`;
+      const resultTd = document.createElement('td');
+      const span = document.createElement('span');
+      span.className = `result-badge result-${run.result}`;
+      span.textContent = run.result_label;
+      resultTd.appendChild(span);
+      const detailTd = document.createElement('td');
+      const parts = [];
+      if (run.temp) parts.push(`体温${run.temp}℃`);
+      if (run.reason) parts.push(run.reason);
+      detailTd.textContent = parts.join(' / ') || '-';
+      tr.appendChild(dateTd);
+      tr.appendChild(resultTd);
+      tr.appendChild(detailTd);
+      body.appendChild(tr);
+    });
+  }
+
+  document.getElementById('stale-notice').classList.remove('show');
+}
+
+async function loadStatus() {
+  try {
+    const res = await fetch('/api/status');
+    if (!res.ok) throw new Error('status ' + res.status);
+    const data = await res.json();
+    applyStatus(data);
+  } catch (e) {
+    document.getElementById('stale-notice').classList.add('show');
+  }
+}
+
+loadStatus();
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>
