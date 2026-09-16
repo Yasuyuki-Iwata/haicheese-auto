@@ -463,12 +463,18 @@ def compute_health_status(
     is_holiday: Callable,
     skip_dates: set,
 ) -> str:
-    """未確認／正常／要確認。停止中はtickの停止を要確認にしない。"""
+    """未確認／正常／要確認。
+
+    停止中（enabled=0）はtick停滞・未実行のどちらも要確認にしない（未実行判定は
+    有効中だけ行う）。一方、runsに記録済みのfailed/unknown（15分超のrunningを
+    含む）は実際の異常なので、停止中でも要確認として表示する。
+    """
     last_tick = get_last_tick(conn)
     if last_tick is None:
         return "unknown"
     settings = get_settings(conn)
-    if settings.get("enabled") and (now - last_tick) > timedelta(minutes=TICK_STALE_MINUTES):
+    enabled = bool(settings.get("enabled"))
+    if enabled and (now - last_tick) > timedelta(minutes=TICK_STALE_MINUTES):
         return "warning"
     d = most_recent_target_date(now.date(), settings, is_holiday, skip_dates)
     if d is None:
@@ -476,6 +482,8 @@ def compute_health_status(
     run = get_run(conn, d.isoformat())
     eff = effective_result(run, now)
     if eff is None:
+        if not enabled:
+            return "ok"
         scheduled_dt = combine_datetime(d, settings["submit_time"])
         if now >= scheduled_dt + timedelta(minutes=ALERT_AFTER_MINUTES):
             return "warning"
