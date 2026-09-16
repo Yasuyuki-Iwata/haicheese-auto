@@ -86,3 +86,7 @@ cd /Users/yasuyuki/Developer/haicheese
 ```
 
 新規追加ファイル: `tests/conftest.py`, `tests/test_core.py`, `tests/test_notifier.py`, `tests/test_runner.py`, `tests/test_monitor.py`, `tests/test_sender.py`, `tests/test_app.py`, `tests/test_ui_responsive.py`, `tests/fixtures/__init__.py`, `tests/fixtures/hoicheese_form.py`。実装コード（`core.py`・`sender.py`・`notifier.py`・`runner.py`・`monitor.py`・`app.py`・`templates/index.html`）は変更していない。
+
+## 再テスト（2026-09-16）
+
+失敗2件（footer-barの横スクロール、停止中の要確認判定）を `227b128` で修正後に全件を再実行し、114件すべて成功した。
