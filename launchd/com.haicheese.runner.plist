@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 毎分runner.pyを起動し、対象日・予定時刻なら連絡帳を送信する -->
+  <key>Label</key>
+  <string>com.haicheese.runner</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/yasuyuki/Developer/haicheese/.venv/bin/python3</string>
+    <string>/Users/yasuyuki/Developer/haicheese/runner.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/yasuyuki/Developer/haicheese</string>
+
+  <key>StartInterval</key>
+  <integer>60</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/yasuyuki/Developer/haicheese/logs/runner_launchd.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/yasuyuki/Developer/haicheese/logs/runner_error.log</string>
+</dict>
+</plist>

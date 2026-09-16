@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 5分おきにmonitor.pyを起動し、未送信・失敗・runnerの停止を検知する -->
+  <key>Label</key>
+  <string>com.haicheese.monitor</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/yasuyuki/Developer/haicheese/.venv/bin/python3</string>
+    <string>/Users/yasuyuki/Developer/haicheese/monitor.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/yasuyuki/Developer/haicheese</string>
+
+  <key>StartInterval</key>
+  <integer>300</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/yasuyuki/Developer/haicheese/logs/monitor_launchd.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/yasuyuki/Developer/haicheese/logs/monitor_error.log</string>
+</dict>
+</plist>

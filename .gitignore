@@ -1,5 +1,9 @@
 .env
 .env.bak-*
+!.env.example
 logs/
+data/
+.venv/
 __pycache__/
 *.pyc
+.DS_Store

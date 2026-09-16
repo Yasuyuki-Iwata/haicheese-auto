@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 設定画面（app.py）を常駐させ、落ちたら再起動する -->
+  <key>Label</key>
+  <string>com.haicheese.web</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/yasuyuki/Developer/haicheese/.venv/bin/python3</string>
+    <string>/Users/yasuyuki/Developer/haicheese/app.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/yasuyuki/Developer/haicheese</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/yasuyuki/Developer/haicheese/logs/web.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/yasuyuki/Developer/haicheese/logs/web_error.log</string>
+</dict>
+</plist>
