@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import sys
 from datetime import datetime
@@ -72,35 +71,46 @@ REAL_DISCORD_OUTBOX_DB = Path.home() / "Library/Application Support/discord-deli
 REAL_HAICHEESE_DB = Path("/Users/yasuyuki/Developer/haicheese/data/app.sqlite3")
 
 
-def _file_hash(path: Path):
-    """ファイルのsha256だけを返す（中身は読み取らない・表示しない）。無ければNone。"""
+def _read_only_rows(path: Path, query: str, params=()):
+    """本番DBを読み取り専用で開いて行を返す。無ければNone。"""
     if not path.exists():
         return None
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    import sqlite3
+    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        return connection.execute(query, params).fetchall()
+    finally:
+        connection.close()
+
+
+def _production_snapshot():
+    # 本番の launchd（com.haicheese.runner）は停止中でも毎分 meta.last_tick を書き、
+    # 送信箱は他のアプリの通知と15分巡回で変わる。ファイルのハッシュでは偶発的に落ちる
+    # ので、試験が書きうる行だけを比べる: 送信箱の haicheese の行、本番DBの
+    # settings・runs・alerts（meta は比べない）。
+    return {
+        "outbox_haicheese": _read_only_rows(
+            REAL_DISCORD_OUTBOX_DB,
+            "SELECT id, status, created_at FROM events WHERE source=? ORDER BY id",
+            ("haicheese",),
+        ),
+        "settings": _read_only_rows(REAL_HAICHEESE_DB, "SELECT * FROM settings"),
+        "runs": _read_only_rows(REAL_HAICHEESE_DB, "SELECT * FROM runs ORDER BY target_date"),
+        "alerts": _read_only_rows(REAL_HAICHEESE_DB, "SELECT * FROM alerts ORDER BY id"),
+    }
 
 
 @pytest.fixture(scope="session", autouse=True)
 def fail_if_production_stores_touched():
-    """本番の送信箱・本番のhaicheese DBのハッシュが変わっていないことを確認する
-    （読むだけで、内容は表示しない）。isolate_discord_delivery・isolated_data_dir
-    が正しく効いていれば、テストはこれらのファイルに一切触れない。
-
-    注意: 本番の launchd（com.haicheese.runner・com.haicheese.monitor）は
-    このテストとは無関係に本体の /Users/yasuyuki/Developer/haicheese 側で動き続けており、
-    停止中（settings.enabled=0）でも runner が毎分 last_tick を更新するため、
-    このテスト実行中にたまたま本番側のtickが走るとハッシュが変わり、ここが偽陽性で
-    落ちることがある（テストコードが本番DBに触れたことを意味しない）。セッション単位に
-    絞っているのは、失敗時に無関係な個別テストの teardown ではなくセッション全体の
-    1箇所にまとめて出すため。"""
-    watched = [REAL_DISCORD_OUTBOX_DB, REAL_HAICHEESE_DB]
-    before = [_file_hash(p) for p in watched]
+    """本番の送信箱の haicheese の行と、本番DBの settings・runs・alerts が
+    試験の前後で変わらないことを確かめる（読み取り専用で開く）。"""
+    before = _production_snapshot()
     yield
-    after = [_file_hash(p) for p in watched]
-    assert before == after, (
-        "テストが本番の送信箱（~/Library/Application Support/discord-delivery）"
-        "または本番の haicheese/data/app.sqlite3 を変更した可能性があります"
-        "（本番launchdによる無関係な更新の可能性もあります）。"
-        "DISCORD_DELIVERY_HOME・HAICHEESE_DATA_DIR をtmp_pathへ向けてください。"
+    after = _production_snapshot()
+    changed = [key for key in before if before[key] != after[key]]
+    assert not changed, (
+        f"試験の前後で本番の {changed} が変わりました。"
+        "DISCORD_DELIVERY_HOME・HAICHEESE_DATA_DIR が一時ディレクトリを向いているか確認してください。"
     )
 
 
