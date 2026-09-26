@@ -103,3 +103,7 @@
   記載がない）。
 - `healthcheck.sh`は設計文書の方針どおり「接続しない」ため対象外とした
   （変更なしなので検証不要と判断）。
+
+## 追記: 記録失敗時の扱いを修正（2026-09-27、統合担当）
+
+上で報告された「Discordへの登録は済んだが alerts への記録だけが例外で失敗すると、check_once が log.error なしに例外で止まる」件を修正した。monitor.py の handle() で record_alert_once の例外を捕まえ、log.error を出して retry に入れる。次回の監視で通知し直すと event_key により suppressed になり、そこで記録される（Discordへは1回だけ）。`test_registered_but_record_failure_does_not_double_deliver` を、例外ではなく1回目の retry に入ることを確かめる形に直した。修正後に147件成功。

@@ -242,11 +242,13 @@ def test_registered_but_record_failure_does_not_double_deliver(conn, real_delive
     monkeypatch.setattr(core, "record_alert_once", flaky_record_alert_once)
 
     notify_fn = make_real_notify()
-    with pytest.raises(RuntimeError):
-        monitor.check_once(
-            conn, now_fn=lambda: jst(2026, 9, 16, 7, 21), notify_fn=notify_fn,
-            is_holiday=make_is_holiday(), load_skip_dates=make_skip_dates(),
-        )
+    first = monitor.check_once(
+        conn, now_fn=lambda: jst(2026, 9, 16, 7, 21), notify_fn=notify_fn,
+        is_holiday=make_is_holiday(), load_skip_dates=make_skip_dates(),
+    )
+    # 記録の失敗は例外で止めず、再試行へ回す（統合時に monitor.py を修正）
+    assert first["fired"] == []
+    assert [r["kind"] for r in first["retry"]] == ["missing"]
     assert core.has_alert(conn, "2026-09-16", "missing") is False
     assert len(calls) == 1  # 1回目でDiscordには既に届いている
 

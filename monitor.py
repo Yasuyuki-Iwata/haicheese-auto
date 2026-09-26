@@ -69,7 +69,15 @@ def check_once(
             return
         if discord_status in ("dead", "not_configured"):
             log.error(f"{target}: {kind} を通知しましたが、Discordへの配信は失敗しました（{discord_status}）。再送はされません。")
-        if core.record_alert_once(conn, target, kind, now.isoformat()):
+        try:
+            recorded = core.record_alert_once(conn, target, kind, now.isoformat())
+        except Exception as e:
+            # 通知は預け済み。記録だけ失敗したので次回もう一度通知し、そこで記録する
+            # （event_key により Discord へは二重に届かない）。
+            log.error(f"{target}: {kind} を通知しましたが、警告済みの記録に失敗しました（{e}）。次回の監視で記録し直します。")
+            retry.append({"target_date": target, "kind": kind})
+            return
+        if recorded:
             log.info(f"{target}: {kind} を通知")
             fired.append({"target_date": target, "kind": kind})
 

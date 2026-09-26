@@ -40,7 +40,7 @@ Bot `{kind: bot, channel_id: <DISCORD_DM_CHANNEL>, token_file: <repo>/.env, toke
 1. `core.has_alert(conn, target_date, kind)`（新設。alerts に同じ日・種類があるか読むだけ）が True なら何もしない。
 2. 通知する。`notify_fn(..., event_key="haicheese:alert:<target_date>:<kind>")`。
 3. 戻り値の `discord_status` が `"error"` 以外（sent・queued・suppressed・dead・not_configured・skipped、または `discord_status` が無い）なら `record_alert_once` で記録し、`fired` に入れる。dead・not_configured は再試行しても送れないので記録し、`log.error` で理由を残す。
-4. `"error"`（共通部を読み込めない・登録の例外）なら記録しない。`log.error` を出し、戻り値の `retry` に入れる。次の5分後の監視でもう一度通知する（event_key があるので、登録済みなら Discord は suppressed になり二重に届かない）。この間は Mac 通知が5分ごとに出る。共通部が壊れているときだけ起きる。
+4. `"error"`（共通部を読み込めない・登録の例外）なら記録しない。3.の記録（`record_alert_once`）自体が例外になったときも同じく記録できていないので、`log.error` を出して `retry` に入れる（例外で監視を止めない）。`log.error` を出し、戻り値の `retry` に入れる。次の5分後の監視でもう一度通知する（event_key があるので、登録済みなら Discord は suppressed になり二重に届かない）。この間は Mac 通知が5分ごとに出る。共通部が壊れているときだけ起きる。
 
 `notify_fn` に `event_key` キーワードを足すので、tests のダミー通知関数も `**kwargs` を受けるように直す。
 
