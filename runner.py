@@ -138,6 +138,9 @@ def run_once(
             mac_title, mac_msg, discord_msg,
             mac=want_mac, discord=want_discord,
         )
+        discord_status = notify_result.get("discord_status")
+        status_note = "（配信待ち）" if discord_status == "queued" else ""
+        log.info(f"{target_date}: 通知 discord_status={discord_status}{status_note}")
         core.set_notify_status(conn, target_date, notify_result.get("status", "unknown"))
 
     return {"attempted": True, "result": outcome.result, "reason": outcome.reason}
@@ -161,16 +164,15 @@ def main() -> int:
         try:
             email = os.getenv("HAICHEESE_EMAIL")
             password = os.getenv("HAICHEESE_PASSWORD")
-            bot_token = os.getenv("DISCORD_BOT_TOKEN", "")
             dm_channel = os.getenv("DISCORD_DM_CHANNEL", "")
 
             def real_submit(**kwargs):
                 return sender.submit(**kwargs)
 
-            def real_notify(mac_title, mac_msg, discord_msg, *, mac=True, discord=True):
+            def real_notify(mac_title, mac_msg, discord_msg, *, mac=True, discord=True, event_key=None):
                 return notifier.notify(
                     mac_title, mac_msg, discord_msg,
-                    bot_token=bot_token, dm_channel=dm_channel, mac=mac, discord=discord,
+                    dm_channel=dm_channel, mac=mac, discord=discord, event_key=event_key,
                 )
 
             if not email or not password or password == "your_password_here":

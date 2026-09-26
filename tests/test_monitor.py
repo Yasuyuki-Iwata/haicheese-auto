@@ -21,7 +21,7 @@ def enable(conn, **overrides):
 
 
 def make_capturing_notify(store: list):
-    def _notify(mac_title, mac_msg, discord_msg, *, mac=True, discord=True):
+    def _notify(mac_title, mac_msg, discord_msg, *, mac=True, discord=True, event_key=None):
         store.append((mac_title, mac_msg, discord_msg))
         return {"status": "ok"}
     return _notify

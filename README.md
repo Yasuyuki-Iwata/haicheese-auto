@@ -47,7 +47,7 @@ cp .env.example .env
 | 変数 | 内容 |
 |---|---|
 | `HAICHEESE_EMAIL` / `HAICHEESE_PASSWORD` | はいチーズ！ノートのログイン情報 |
-| `DISCORD_BOT_TOKEN` / `DISCORD_DM_CHANNEL` | 送信結果の通知先 |
+| `DISCORD_BOT_TOKEN` / `DISCORD_DM_CHANNEL` | 送信結果の通知先。`DISCORD_BOT_TOKEN` はこのツール自身は読まず、共通配信部 `discord_delivery`（`~/.local/lib`）が送信直前に`.env`から読む |
 | `HAICHEESE_WEB_HOST` / `HAICHEESE_WEB_PORT` | 設定画面の待ち受け（既定 `127.0.0.1:5002`） |
 | `HAICHEESE_WEB_TOKEN` | 設定画面のアクセストークン。未設定だと起動しない |
 

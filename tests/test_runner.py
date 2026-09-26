@@ -27,7 +27,7 @@ def make_fake_submit(outcome: FakeOutcome, capture: dict):
 
 
 def make_fake_notify(capture: list, status: str = "ok"):
-    def _notify(mac_title, mac_msg, discord_msg, *, mac=True, discord=True):
+    def _notify(mac_title, mac_msg, discord_msg, *, mac=True, discord=True, event_key=None):
         capture.append({
             "mac_title": mac_title, "mac_msg": mac_msg, "discord_msg": discord_msg,
             "mac": mac, "discord": discord,

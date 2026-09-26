@@ -550,6 +550,14 @@ def set_notify_status(conn: sqlite3.Connection, target_date: str, status: str) -
         raise
 
 
+def has_alert(conn: sqlite3.Connection, target_date: str, kind: str) -> bool:
+    """同じ日・種類のアラートが既に記録済みかどうかを読むだけ（副作用なし）。"""
+    row = conn.execute(
+        "SELECT 1 FROM alerts WHERE target_date=? AND kind=?", (target_date, kind)
+    ).fetchone()
+    return row is not None
+
+
 def record_alert_once(conn: sqlite3.Connection, target_date: str, kind: str, created_at_iso: str) -> bool:
     """同じ日・種類のアラートを一度だけ記録する。初めてならTrue（通知してよい）。"""
     conn.execute("BEGIN IMMEDIATE")

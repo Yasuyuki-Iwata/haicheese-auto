@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from datetime import datetime
@@ -49,6 +50,58 @@ def isolated_data_dir(tmp_path, monkeypatch):
     data_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("HAICHEESE_DATA_DIR", str(data_dir))
     yield data_dir
+
+
+@pytest.fixture(autouse=True)
+def isolate_discord_delivery(tmp_path, monkeypatch):
+    """共通配信部（discord_delivery）が本番の送信箱・Botトークンに触れないよう、
+    全テストで隔離する。
+
+    - DISCORD_DELIVERY_HOME: 送信箱（sqlite・添付）の保存先を一時ディレクトリへ
+    - DISCORD_DELIVERY_USER_HOME: receipt用のホームを一時ディレクトリへ
+    - NO_DISCORD=1: 実際のHTTP送信を止める（送信を試す個別テストだけ外し、
+      共通配信部のHTTP層（_http_requestなど）を偽物に差し替える）
+    """
+    monkeypatch.setenv("DISCORD_DELIVERY_HOME", str(tmp_path / "discord-delivery-outbox"))
+    monkeypatch.setenv("DISCORD_DELIVERY_USER_HOME", str(tmp_path))
+    monkeypatch.setenv("NO_DISCORD", "1")
+    yield
+
+
+REAL_DISCORD_OUTBOX_DB = Path.home() / "Library/Application Support/discord-delivery/outbox.sqlite3"
+REAL_HAICHEESE_DB = Path("/Users/yasuyuki/Developer/haicheese/data/app.sqlite3")
+
+
+def _file_hash(path: Path):
+    """ファイルのsha256だけを返す（中身は読み取らない・表示しない）。無ければNone。"""
+    if not path.exists():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def fail_if_production_stores_touched():
+    """本番の送信箱・本番のhaicheese DBのハッシュが変わっていないことを確認する
+    （読むだけで、内容は表示しない）。isolate_discord_delivery・isolated_data_dir
+    が正しく効いていれば、テストはこれらのファイルに一切触れない。
+
+    注意: 本番の launchd（com.haicheese.runner・com.haicheese.monitor）は
+    このテストとは無関係に本体の /Users/yasuyuki/Developer/haicheese 側で動き続けており、
+    停止中（settings.enabled=0）でも runner が毎分 last_tick を更新するため、
+    このテスト実行中にたまたま本番側のtickが走るとハッシュが変わり、ここが偽陽性で
+    落ちることがある（テストコードが本番DBに触れたことを意味しない）。セッション単位に
+    絞っているのは、失敗時に無関係な個別テストの teardown ではなくセッション全体の
+    1箇所にまとめて出すため。"""
+    watched = [REAL_DISCORD_OUTBOX_DB, REAL_HAICHEESE_DB]
+    before = [_file_hash(p) for p in watched]
+    yield
+    after = [_file_hash(p) for p in watched]
+    assert before == after, (
+        "テストが本番の送信箱（~/Library/Application Support/discord-delivery）"
+        "または本番の haicheese/data/app.sqlite3 を変更した可能性があります"
+        "（本番launchdによる無関係な更新の可能性もあります）。"
+        "DISCORD_DELIVERY_HOME・HAICHEESE_DATA_DIR をtmp_pathへ向けてください。"
+    )
 
 
 @pytest.fixture
